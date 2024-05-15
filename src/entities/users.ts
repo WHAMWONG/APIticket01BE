@@ -10,6 +10,7 @@ import {
 import { SubmissionForm } from '@entities/submission_forms';
 import { Submission } from '@entities/submissions';
 import { AddressUpdate } from '@entities/address_updates';
+import { CustomerSearch } from '@entities/customer_searches';
 
 @Entity('users')
 export class User {
@@ -48,4 +49,8 @@ export class User {
   @OneToMany(() => AddressUpdate, (addressUpdate) => addressUpdate.user, { cascade: true })
   @JoinColumn({ name: 'user_id' })
   address_updates: AddressUpdate[];
+
+  @OneToMany(() => CustomerSearch, (customerSearch) => customerSearch.user, { cascade: true })
+  @JoinColumn({ name: 'user_id' })
+  customer_searches: CustomerSearch[];
 }
