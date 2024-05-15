@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { UserRepository } from 'src/repositories/users.repository';
 import { SubmissionFormRepository } from 'src/repositories/submission-forms.repository';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SubmissionsService } from '../submissions/submissions.service';
 
 @Injectable()
 export class UsersService {
@@ -13,6 +14,7 @@ export class UsersService {
     @InjectRepository(SubmissionFormRepository)
     private submissionFormRepository: SubmissionFormRepository,
     private dataSource: DataSource,
+    private submissionsService: SubmissionsService,
   ) {}
 
   async updateUser(userId: number, updateUserData: UpdateUserDto): Promise<string> {
@@ -20,6 +22,18 @@ export class UsersService {
 
     await queryRunner.connect();
     await queryRunner.startTransaction();
+
+    try {
+      // Validate the submission form before updating user information
+      await this.submissionsService.validateSubmissionForm(updateUserData);
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      await queryRunner.release();
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new BadRequestException('Validation failed.');
+    }
 
     try {
       await this.userRepository.update(userId, updateUserData);
@@ -34,7 +48,7 @@ export class UsersService {
 
       await queryRunner.commitTransaction();
 
-      return 'User information updated successfully.';
+      return 'Your information has been successfully updated.';
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
