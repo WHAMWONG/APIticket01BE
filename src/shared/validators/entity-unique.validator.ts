@@ -37,9 +37,17 @@ export class EntityUniqueValidator implements ValidatorConstraintInterface {
   }
 
   defaultMessage<E>(args: UniqueValidationArguments<E>) {
-    return `A ${this.dataSource.getRepository(args.constraints[0]).metadata.tableName} with this ${
-      args.property
-    } already exists`
+    const entityName = this.dataSource.getRepository(args.constraints[0]).metadata.tableName;
+    let message = `A ${entityName} with this ${args.property} already exists`;
+    switch (args.property) {
+      case 'username':
+        message = 'Username cannot be empty';
+        break;
+      case 'email':
+        message = 'Email format is invalid';
+        break;
+    }
+    return message;
   }
 }
 
