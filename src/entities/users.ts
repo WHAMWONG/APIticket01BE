@@ -9,6 +9,7 @@ import {
 } from 'typeorm';
 import { SubmissionForm } from '@entities/submission_forms';
 import { Submission } from '@entities/submissions';
+import { AddressUpdate } from '@entities/address_updates';
 
 @Entity('users')
 export class User {
@@ -43,4 +44,8 @@ export class User {
   @OneToMany(() => Submission, (submission) => submission.user, { cascade: true })
   @JoinColumn({ name: 'user_id' })
   submissions: Submission[];
+
+  @OneToMany(() => AddressUpdate, (addressUpdate) => addressUpdate.user, { cascade: true })
+  @JoinColumn({ name: 'user_id' })
+  address_updates: AddressUpdate[];
 }

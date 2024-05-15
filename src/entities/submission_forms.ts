@@ -15,6 +15,8 @@ enum SubmissionStatusEnum {
   SUBMITTED = 'submitted',
   VALIDATED = 'validated',
   ERROR = 'error',
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
 }
 
 @Entity('submission_forms')
@@ -37,7 +39,7 @@ export class SubmissionForm {
   @Column({
     nullable: true,
     type: 'enum',
-    enum: ['submitted', 'validated', 'error'],
+    enum: ['submitted', 'validated', 'error', 'active', 'inactive'],
     default: 'submitted',
   })
   submission_status: `${SubmissionStatusEnum}` = 'submitted';

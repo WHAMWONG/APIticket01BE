@@ -14,6 +14,7 @@ enum SubmissionStatusEnum {
   PENDING = 'pending',
   PROCESSED = 'processed',
   ERROR = 'error',
+  REJECTED = 'rejected',
 }
 
 @Entity('submissions')
@@ -36,7 +37,7 @@ export class Submission {
   @Column({
     nullable: true,
     type: 'enum',
-    enum: ['pending', 'processed', 'error'],
+    enum: ['pending', 'processed', 'error', 'rejected'],
     default: 'pending',
   })
   submission_status: `${SubmissionStatusEnum}` = 'pending';
