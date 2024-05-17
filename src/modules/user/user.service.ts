@@ -9,7 +9,7 @@ export class UserService {
   // ... other methods and properties of UserService
 
   async validateUserInformationSubmission(validateUserSubmissionDto: ValidateUserSubmissionDto) {
-    const validationResult = validateUserSubmission(
+    const validationResult = await validateUserSubmission(
       validateUserSubmissionDto.username,
       validateUserSubmissionDto.email,
       validateUserSubmissionDto.submissionData

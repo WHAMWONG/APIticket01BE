@@ -7,6 +7,13 @@ import { ValidateUserSubmissionDto } from './dto/validate-user-submission.dto';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  @Post('/user-information/validate_list')
+  @UseGuards(AuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async validateUserInformationList(@Body() validateUserSubmissionDto: ValidateUserSubmissionDto) {
+    return this.validateUserInformation(validateUserSubmissionDto);
+  }
+
   @Post('/user-information/validate')
   @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)

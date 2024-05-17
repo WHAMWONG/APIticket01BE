@@ -5,7 +5,7 @@ export class ValidateUserSubmissionDto {
   @IsNotEmpty({ message: 'Username cannot be empty and must be between 3 and 20 characters.' })
   @Length(3, 20)
   @Matches(/^[a-zA-Z0-9_]+$/, {
-    message: 'Username must contain only alphanumeric characters and underscores.',
+    message: 'Username cannot be empty and must be between 3 and 20 characters.',
   })
   username: string;
 
@@ -14,7 +14,7 @@ export class ValidateUserSubmissionDto {
   email: string;
 
   @IsNotEmpty({ message: 'Submission data is invalid or missing required fields.' })
-  @IsJSON({ message: 'Submission data must be a valid JSON object.' })
+  @IsJSON({ message: 'Submission data is invalid or missing required fields.' })
   @ValidateNested()
   @Type(() => Object)
   submissionData: any;
