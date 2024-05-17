@@ -23,15 +23,16 @@ export class SubmissionsService {
   ) {}
 
   async validateSubmission(dto: SubmissionValidationDto): Promise<SubmissionValidationResultDto> {
-    const validationResult = await validateUserSubmission(dto.username, dto.email, dto.submissionData);
-    const errors = validationResult.errors.map(error => {
-      const [field, message] = error.split(': ');
-      return { field, message };
-    });
+    // Use the shared validateUserSubmission utility function
+    const { errors, isValid } = await validateUserSubmission(dto.username, dto.email, dto.submissionData);
 
-    return {
-      isValid: errors.length === 0,
-      errors: errors.length > 0 ? errors : undefined,
-    };
+    // Prepare the response
+    const validationResult = new SubmissionValidationResultDto();
+    validationResult.isValid = isValid;
+    if (!isValid) {
+      validationResult.errors = errors.map(error => ({ field: error.split(' ')[0], message: error }));
+    }
+
+    return validationResult;
   }
 }

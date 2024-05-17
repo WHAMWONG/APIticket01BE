@@ -1,37 +1,30 @@
-import { User } from '@entities/users';
-import { UserRepository } from '../../repositories/users.repository';
+{ User } from '@entities/users';
+import { UserRepository } from '@repositories/users.repository';
+import { SubmissionDataDto } from '@entities/submission_forms'; // Imported SubmissionDataDto from the correct location
 import { EntityUniqueValidator } from './entity-unique.validator';
 import { validate as validateEmail } from 'email-validator';
 import { plainToInstance } from 'class-transformer';
 import { validate, ValidationError } from 'class-validator';
 
-export class SubmissionDataDto {
-  // Define the expected fields and their validation rules
-  // This is an example, actual fields and rules should be based on the application's requirements
-  // @IsString()
-  // @IsNotEmpty()
-  // fieldName: string;
-}
-
 export async function validateUserSubmission(username: string, email: string, submissionData: any) {
-  const errors: { field: string; message: string }[] = [];
-  let isValid = true;
+  const errors: string[] = [];
+  let isValid = true; // Assume the data is valid initially
 
   // Validate username
   if (!username || username.length < 3 || username.length > 20 || !/^[a-zA-Z0-9_]+$/.test(username)) {
     errors.push('Username must be between 3 and 20 characters long and contain only alphanumeric characters and underscores.');
     isValid = false;
   }
-  
-  // Validate email
+
+  // Validate email for proper format and uniqueness
   if (!email || !validateEmail(email)) {
     errors.push('Email is invalid.');
     isValid = false;
   } else {
     const userRepository = new UserRepository(); // Assuming UserRepository can be instantiated like this
     const entityUniqueValidator = new EntityUniqueValidator(); // Assuming EntityUniqueValidator can be instantiated like this
-    const isEmailUnique = await entityUniqueValidator.validateUnique(email, {
-      constraints: [User],
+    const isEmailUnique = await entityUniqueValidator.validate(email, {
+      constraints: [User], // Use the User entity to check for uniqueness
       property: 'email',
       object: { email },
     });
@@ -46,12 +39,9 @@ export async function validateUserSubmission(username: string, email: string, su
   const validationErrors: ValidationError[] = await validate(submissionDataInstance);
   if (validationErrors.length > 0) {
     validationErrors.forEach((error: ValidationError) => {
-      errors.push({
-        field: error.property,
-        message: Object.values(error.constraints).join(', ')
-      });
+      errors.push(`Field ${error.property}: ${Object.values(error.constraints).join(', ')}`);
     });
-    isValid = false;
+    isValid = false; // Set to false if there are any validation errors
   }
 
   return { errors, isValid };
