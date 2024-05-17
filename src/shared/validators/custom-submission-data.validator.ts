@@ -1,19 +1,28 @@
-import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface } from 'class-validator';
+import { registerDecorator, ValidationOptions, ValidatorConstraint, ValidatorConstraintInterface, ValidationArguments } from 'class-validator';
 
 @ValidatorConstraint({ async: true })
 export class IsSubmissionDataValidConstraint implements ValidatorConstraintInterface {
   validate(submissionData: any, args: ValidationArguments) {
-    // Implement the "Validate User Information Submission" business logic here
-    // For example, check if the submissionData contains a valid "username" and "email"
-    // This is a placeholder for the actual validation logic
+    let errors = [];
     const isValidUsername = typeof submissionData.username === 'string' && submissionData.username.trim() !== '';
     const isValidEmail = typeof submissionData.email === 'string' && submissionData.email.includes('@');
-    return isValidUsername && isValidEmail;
+
+    if (!isValidUsername) {
+      errors.push({ field: 'username', message: 'Username cannot be empty' });
+    }
+    if (!isValidEmail) {
+      errors.push({ field: 'email', message: 'Email format is invalid' });
+    }
+
+    return { isValid: isValidUsername && isValidEmail, errors: errors };
   }
 
   defaultMessage(args: ValidationArguments) {
-    // Provide a default error message
-    return 'Submission data is invalid';
+    if (args.constraints[0]) {
+      return args.constraints[0];
+    } else {
+      return 'Submission data is invalid';
+    }
   }
 }
 
@@ -24,7 +33,7 @@ export function IsSubmissionDataValid(validationOptions?: ValidationOptions) {
       propertyName: propertyName,
       options: validationOptions,
       constraints: [],
-      validator: IsSubmissionDataValidConstraint,
+      validator: IsSubmissionDataValidConstraint
     });
   };
 }

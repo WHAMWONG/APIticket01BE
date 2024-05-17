@@ -15,25 +15,36 @@ export interface UniqueValidationArguments<E> extends ValidationArguments {
 @ValidatorConstraint({ name: 'isEntityUnique', async: true })
 @Injectable()
 export class EntityUniqueValidator implements ValidatorConstraintInterface {
-  constructor(protected readonly dataSource: DataSource) {}
+  constructor(protected readonly dataSource: DataSource) { }
 
   async validate<E>(value: any, args: UniqueValidationArguments<E>) {
     const [EntityClass] = args.constraints
-
     const entityRepo = await this.dataSource.getRepository(EntityClass)
-
     const primaryKey = await entityRepo.metadata.primaryColumns[0].propertyName
-
-    const query = {
-      [args.property]: value,
-      ...(args.object[primaryKey] && {
-        [primaryKey]: Not(args.object[primaryKey]),
-      }),
-    } as FindOptionsWhere<E>
-
-    const count = await entityRepo.count({ where: query })
-
-    return count === 0
+    
+    const errors = [];
+    let isValid = true;
+    
+    if (!value) {
+      isValid = false;
+      errors.push({ field: args.property, message: `The ${args.property} field cannot be empty` });
+    } else {
+      const query = {
+        [args.property]: value,
+        ...(args.object[primaryKey] && {
+          [primaryKey]: Not(args.object[primaryKey]),
+        }),
+      } as FindOptionsWhere<E>
+    
+      const count = await entityRepo.count({ where: query })
+    
+      if (count > 0) {
+        isValid = false;
+        errors.push({ field: args.property, message: `A ${EntityClass.name} with this ${args.property} already exists` });
+      }
+    }
+    
+    return { isValid, errors };
   }
 
   defaultMessage<E>(args: UniqueValidationArguments<E>) {
@@ -41,10 +52,10 @@ export class EntityUniqueValidator implements ValidatorConstraintInterface {
     let message = `A ${entityName} with this ${args.property} already exists`;
     switch (args.property) {
       case 'username':
-        message = 'Username cannot be empty';
+        message = 'The username is already taken';
         break;
       case 'email':
-        message = 'Email format is invalid';
+        message = 'The email is already in use';
         break;
     }
     return message;

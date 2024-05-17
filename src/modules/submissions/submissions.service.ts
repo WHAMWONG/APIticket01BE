@@ -22,39 +22,16 @@ export class SubmissionsService {
     private readonly entityUniqueValidator: EntityUniqueValidator,
   ) {}
 
-  // This method has been updated to include the new validation logic
   async validateSubmission(dto: SubmissionValidationDto): Promise<SubmissionValidationResultDto> {
-    const errors: { field: string; message: string }[] = [];
-
-    // Validate username
-    if (!dto.username || dto.username.trim().length === 0) {
-      errors.push({ field: 'username', message: 'Username cannot be empty' });
-    } else if (!/^[a-zA-Z0-9_]+$/.test(dto.username)) {
-      errors.push({ field: 'username', message: 'Username contains invalid characters' });
-    }
-
-    // Validate email
-    if (!dto.email || dto.email.trim().length === 0) {
-      errors.push({ field: 'email', message: 'Email cannot be empty' });
-    } else if (!/\S+@\S+\.\S+/.test(dto.email)) {
-      errors.push({ field: 'email', message: 'Email is not valid' });
-    }
-
-    // Perform additional validation using the validateUserSubmission function
-    const { errors: submissionErrors, isValid } = await validateUserSubmission(dto.username, dto.email, dto.submissionData);
-    if (!isValid) {
-      errors.push(...submissionErrors.map(error => ({ field: 'submissionData', message: error })));
-    }
-
-    // Set the form submission status based on validation result
-    const submissionStatus = isValid ? 'ready for submission' : 'validation failed';
-
-    // Add more business logic validation for submissionData if needed
+    const validationResult = await validateUserSubmission(dto.username, dto.email, dto.submissionData);
+    const errors = validationResult.errors.map(error => {
+      const [field, message] = error.split(': ');
+      return { field, message };
+    });
 
     return {
       isValid: errors.length === 0,
       errors: errors.length > 0 ? errors : undefined,
     };
   }
-  // Additional methods and logic can be added here as needed
 }
