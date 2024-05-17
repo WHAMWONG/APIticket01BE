@@ -1,5 +1,5 @@
 import { User } from '@entities/users';
-import { UserRepository } from '@repositories/users.repository';
+import { SubmissionsService } from 'src/modules/submissions/submissions.service';
 import { EntityUniqueValidator } from './entity-unique.validator';
 import { validate as validateEmail } from 'email-validator';
 import { plainToInstance } from 'class-transformer';
@@ -14,21 +14,21 @@ export class SubmissionDataDto {
 }
 
 export async function validateUserSubmission(username: string, email: string, submissionData: any) {
-  const errors: string[] = [];
+  const errors: { field: string; message: string }[] = [];
   let isValid = true;
 
   // Validate username
   if (!username || username.length < 3 || username.length > 20 || !/^[a-zA-Z0-9_]+$/.test(username)) {
-    errors.push('Username must be between 3 and 20 characters long and contain only alphanumeric characters and underscores.');
+    errors.push({ field: 'username', message: 'Username must be between 3 and 20 characters long and contain only alphanumeric characters and underscores.' });
     isValid = false;
   }
 
   // Validate email
   if (!email || !validateEmail(email)) {
-    errors.push('Email is invalid.');
+    errors.push({ field: 'email', message: 'Email is invalid.' });
     isValid = false;
   } else {
-    const userRepository = new UserRepository(); // Assuming UserRepository can be instantiated like this
+    const submissionsService = new SubmissionsService(); // Assuming SubmissionsService can be instantiated like this
     const entityUniqueValidator = new EntityUniqueValidator(); // Assuming EntityUniqueValidator can be instantiated like this
     const isEmailUnique = await entityUniqueValidator.validate(email, {
       constraints: [User],
@@ -36,7 +36,7 @@ export async function validateUserSubmission(username: string, email: string, su
       object: { email },
     });
     if (!isEmailUnique) {
-      errors.push('Email already exists.');
+      errors.push({ field: 'email', message: 'Email already exists.' });
       isValid = false;
     }
   }
@@ -45,11 +45,13 @@ export async function validateUserSubmission(username: string, email: string, su
   const submissionDataInstance = plainToInstance(SubmissionDataDto, submissionData);
   const validationErrors: ValidationError[] = await validate(submissionDataInstance);
   if (validationErrors.length > 0) {
-    validationErrors.forEach((error: ValidationError) => {
-      errors.push(`Field ${error.property}: ${Object.values(error.constraints).join(', ')}`);
+    validationErrors.forEach(error => {
+      const message = `Field ${error.property}: ${Object.values(error.constraints).join(', ')}`;
+      errors.push({ field: error.property, message });
     });
     isValid = false;
   }
 
-  return { errors, isValid };
+  // Return the validation result
+  return isValid ? { isValid } : { errors, isValid: false };
 }

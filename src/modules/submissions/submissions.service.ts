@@ -1,48 +1,60 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { SubmissionRepository } from 'src/repositories/submissions.repository';
-import { ValidateSubmissionDto } from './dto/validate-submission.dto';
+import { validateUserSubmission } from 'src/shared/validators/validate-user-submission.util';
 import { Submission } from 'src/entities/submissions';
+import { EntityUniqueValidator } from 'src/shared/validators/entity-unique.validator';
+
+export class SubmissionValidationDto {
+  username: string;
+  email: string;
+  submissionData: string;
+}
+
+export class SubmissionValidationResultDto {
+  isValid: boolean;
+  errors?: { field: string; message: string }[];
+}
 
 @Injectable()
 export class SubmissionsService {
   constructor(
-    @InjectRepository(SubmissionRepository)
-    private submissionRepository: SubmissionRepository,
+    private readonly submissionRepository: SubmissionRepository,
+    private readonly entityUniqueValidator: EntityUniqueValidator,
   ) {}
 
-  async submitForm(validateSubmissionDto: ValidateSubmissionDto): Promise<{ submissionStatus: 'ready' | 'failed'; errors?: { field: string; message: string }[]; }> {
-    // Step 1: Call the "validateSubmission" function with the input DTO fields.
-    const validationResults = await this.validateSubmission(validateSubmissionDto);
+  // This method has been updated to include the new validation logic
+  async validateSubmission(dto: SubmissionValidationDto): Promise<SubmissionValidationResultDto> {
+    const errors: { field: string; message: string }[] = [];
 
-    // Step 2: If the validation fails, return an object with "submissionStatus" set to 'failed' and the validation "errors".
-    if (validationResults.errors.length > 0) {
-      return {
-        submissionStatus: 'failed',
-        errors: validationResults.errors,
-      };
+    // Validate username
+    if (!dto.username || dto.username.trim().length === 0) {
+      errors.push({ field: 'username', message: 'Username cannot be empty' });
+    } else if (!/^[a-zA-Z0-9_]+$/.test(dto.username)) {
+      errors.push({ field: 'username', message: 'Username contains invalid characters' });
     }
 
-    // Step 3: If the validation passes, create a new "Submission" entity with the "submission_data" and other relevant fields, and save it to the database using "SubmissionRepository".
-    const submission = this.submissionRepository.create({
-      submission_data: validateSubmissionDto.submission_data,
-      // Add other relevant fields here
-      submission_status: 'pending', // Assuming 'pending' is a valid status
-      // user_id: ... (should be set based on the current user context)
-      // submission_form_id: ... (should be set based on the form being submitted)
-    });
-    await this.submissionRepository.save(submission);
+    // Validate email
+    if (!dto.email || dto.email.trim().length === 0) {
+      errors.push({ field: 'email', message: 'Email cannot be empty' });
+    } else if (!/\S+@\S+\.\S+/.test(dto.email)) {
+      errors.push({ field: 'email', message: 'Email is not valid' });
+    }
 
-    // Step 4: Return an object with "submissionStatus" set to 'ready' if the form submission is successful.
+    // Perform additional validation using the validateUserSubmission function
+    const { errors: submissionErrors, isValid } = await validateUserSubmission(dto.username, dto.email, dto.submissionData);
+    if (!isValid) {
+      errors.push(...submissionErrors.map(error => ({ field: 'submissionData', message: error })));
+    }
+
+    // Set the form submission status based on validation result
+    const submissionStatus = isValid ? 'ready for submission' : 'validation failed';
+
+    // Add more business logic validation for submissionData if needed
+
     return {
-      submissionStatus: 'ready',
+      isValid: errors.length === 0,
+      errors: errors.length > 0 ? errors : undefined,
     };
   }
-
-  private async validateSubmission(validateSubmissionDto: ValidateSubmissionDto): Promise<{ errors: { field: string; message: string }[] }> {
-    // Implement the validation logic here
-    // This is a placeholder for the actual validation function
-    // You should replace this with the actual validation logic
-    return { errors: [] };
-  }
+  // Additional methods and logic can be added here as needed
 }
