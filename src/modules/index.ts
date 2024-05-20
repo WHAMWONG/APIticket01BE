@@ -1,4 +1,6 @@
-import { HealthCheckModule } from './health-check/health-check.module';
-import { UsersModule } from './users/users.module';
+import { UserModule } from './user/user.module';
 
-export default [HealthCheckModule, UsersModule];
+export const modules = [
+  UserModule,
+  // ... other modules
+];
