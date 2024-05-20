@@ -1,56 +1,55 @@
-{ Injectable, BadRequestException } from '@nestjs/common';
-import { UserRepository } from 'src/repositories/users.repository';
-import { UpdateUserDto } from 'src/modules/users/dto/update-user.dto';
-import { SubmissionFormRepository } from 'src/repositories/submission-forms.repository';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/entities/user.entity'; // Assuming User entity exists based on ERD
+import { ValidateSubmissionDto } from './dto/validate-submission.dto';
+import { validate } from 'class-validator';
 import * as dayjs from 'dayjs';
-import { isEmail, isPhoneNumber } from 'class-validator';
 
 @Injectable()
 export class SubmissionsService {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly submissionFormRepository: SubmissionFormRepository,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
-  async validateSubmissionForm(
-    formData: UpdateUserDto
-  ): Promise<string> {
-    // Validate user_id
-    const user = await this.userRepository.findOne({ where: { id: formData.user_id } });
-    if (!user || !user.is_logged_in) {
-      throw new BadRequestException('User not found or not logged in.');
+  async validateSubmission(dto: ValidateSubmissionDto): Promise<{ message: string }> {
+    const errors = await validate(dto);
+    if (errors.length > 0) {
+      throw new BadRequestException('Validation failed for one or more fields.');
     }
 
-    // Validate required fields are present and not empty
-    const requiredFields = [
-      'name', 'gender', 'department', 'employee_number', 'address', 
-      'phone_number', 'email', 'date_of_birth', 'contract_date'
-    ];
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        throw new BadRequestException('All fields are required.');
-      } 
+    const user = await this.userRepository.findOneBy({ id: dto.user_id });
+    if (!user || !user.isLoggedIn) { // Assuming there is a field to check if user is logged in
+      throw new BadRequestException('User must be registered and logged in.');
     }
 
-    // Validate email format
-    if (!isEmail(formData.email)) {
+    if (!this.validateEmail(dto.email)) {
       throw new BadRequestException('Invalid email format.');
     }
 
-    // Validate phone number format using class-validator
-    if (!isPhoneNumber(formData.phone_number)) {
+    if (!this.validatePhoneNumber(dto.phone_number)) {
       throw new BadRequestException('Invalid phone number format.');
     }
 
-    // Validate date_of_birth and contract_date format
-    const dateFormat = 'YYYY-MM-DD';
-    if (!dayjs(formData.date_of_birth, dateFormat).isValid()) {
-      throw new BadRequestException('Invalid date format.');
-    }
-    if (!dayjs(formData.contract_date, dateFormat).isValid()) {
-      throw new BadRequestException('Invalid contract_date format. Use YYYY-MM-DD.');
+    if (!this.validateDate(dto.date_of_birth) || !this.validateDate(dto.contract_date)) {
+      throw new BadRequestException('Invalid date format. Dates must be in YYYY-MM-DD format.');
     }
 
-    return 'Validation successful.';
+    return { message: 'Validation successful.' };
+  }
+
+  private validateEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  private validatePhoneNumber(phoneNumber: string): boolean {
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/; // E.164 format
+    return phoneRegex.test(phoneNumber);
+  }
+
+  private validateDate(date: string): boolean {
+    return dayjs(date, 'YYYY-MM-DD', true).isValid();
   }
 }
