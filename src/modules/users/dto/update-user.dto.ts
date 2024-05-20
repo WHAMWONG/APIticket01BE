@@ -1,52 +1,33 @@
-import { IsString, IsEmail, IsEnum, IsNumberString, IsNotEmpty, IsDate, ValidateNested } from 'class-validator';
-import { Type } from 'class-transformer';
-
-export enum Gender {
-  Male = 'male',
-  Female = 'female',
-  Other = 'other',
-}
+import { IsString, IsEmail, IsOptional, IsNumberString, IsDate } from 'class-validator';
 
 export class UpdateUserDto {
-  @IsNotEmpty({ message: "User not found or not logged in." })
   @IsNumberString()
-  user_id: number;
+  user_id: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
   @IsString()
   name: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsEnum(Gender, { message: "Invalid gender." })
-  gender: Gender;
+  @IsString()
+  gender: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
   @IsString()
   department: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsNumberString({ message: "Invalid employee number format." })
+  @IsNumberString()
   employee_number: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
   @IsString()
   address: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsNumberString({ message: "Invalid phone number format." })
+  @IsNumberString()
   phone_number: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsEmail({}, { message: "Invalid email format." })
+  @IsEmail()
   email: string;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsDate({ message: "Invalid date format." })
-  @Type(() => Date)
+  @IsDate()
   date_of_birth: Date;
 
-  @IsNotEmpty({ message: "All fields are required." })
-  @IsDate({ message: "Invalid date format." })
-  @Type(() => Date)
+  @IsDate()
   contract_date: Date;
 }

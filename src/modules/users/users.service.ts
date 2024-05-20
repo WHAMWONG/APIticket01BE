@@ -1,42 +1,27 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import { UserRepository } from 'src/repositories/users.repository';
-import { SubmissionFormRepository } from 'src/repositories/submission-forms.repository';
+import { Repository } from 'typeorm';
+import { User } from 'src/entities/user.entity';
+import { SubmissionForm } from 'src/entities/submission_form.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { SubmissionsService } from '../submissions/submissions.service';
+import { dataSource } from 'src/database/data-source';
 
 @Injectable()
-export class UsersService {
+export class UserService {
   constructor(
-    @InjectRepository(UserRepository)
-    private userRepository: UserRepository,
-    @InjectRepository(SubmissionFormRepository)
-    private submissionFormRepository: SubmissionFormRepository,
-    private dataSource: DataSource,
-    private submissionsService: SubmissionsService,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(SubmissionForm)
+    private submissionFormRepository: Repository<SubmissionForm>,
   ) {}
 
   async updateUser(userId: number, updateUserData: UpdateUserDto): Promise<string> {
-    const queryRunner = this.dataSource.createQueryRunner();
-
+    const queryRunner = dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
     try {
-      // Validate the submission form before updating user information
-      await this.submissionsService.validateSubmissionForm(updateUserData);
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      await queryRunner.release();
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException('Validation failed.');
-    }
-
-    try {
-      await this.userRepository.update(userId, updateUserData);
+      await queryRunner.manager.getRepository(User).update(userId, updateUserData);
 
       const submissionData = {
         user_id: userId,
@@ -44,14 +29,14 @@ export class UsersService {
         submission_status: 'submitted',
         submission_date: new Date(),
       };
-      await this.submissionFormRepository.save(submissionData);
+      await queryRunner.manager.getRepository(SubmissionForm).save(submissionData);
 
       await queryRunner.commitTransaction();
 
-      return 'Your information has been successfully updated.';
-    } catch (error) {
+      return 'User information updated successfully.';
+    } catch (err) {
       await queryRunner.rollbackTransaction();
-      throw error;
+      throw err;
     } finally {
       await queryRunner.release();
     }
