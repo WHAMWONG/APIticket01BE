@@ -1,45 +1,58 @@
-import { Controller, Get, Query, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Post, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Auth } from 'src/decorators/auth.decorator';
 import { CurrentUser } from 'src/decorators/current-user.decorator';
-import { User } from 'src/entities/users.ts';
-import { VerifyMainMenuAccessDto } from './dto/verify-main-menu-access.dto';
+import { User } from 'src/entities/users';
 
 @Controller()
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Get('/api/main-menu/verify-access')
-  @Auth()
+  @Post('/api/main-menu/redirect')
   @HttpCode(HttpStatus.OK)
-  async verifyMainMenuAccess(@Query() verifyMainMenuAccessDto: VerifyMainMenuAccessDto, @CurrentUser() currentUser: User) {
-    const user = await this.authService.userRepository.findOneBy({ id: verifyMainMenuAccessDto.user_id });
-    if (!user) {
-      return {
-        status: HttpStatus.BAD_REQUEST,
-        message: 'User not found.'
-      };
-    }
+  @Auth()
+  async redirect(@CurrentUser() user: User, @Body() body: { user_id: number; selected_option: string }) {
+    const { user_id, selected_option } = body;
 
-    if (!user.is_logged_in) {
+    // Validate user_id and selected_option before proceeding
+    if (user.id !== user_id) {
       return {
         status: HttpStatus.UNAUTHORIZED,
-        message: 'User is not logged in.'
+        message: 'User not found or unauthorized.',
       };
     }
 
-    // Assuming checkPermissions is a method in AuthService that checks if the user has access to the main menu
-    const hasAccess = await this.authService.checkPermissions(user.id, 'main-menu');
-    if (!hasAccess) {
+    const validOptions = ['New Customer', 'Search Contracts', 'Update Customer Attributes', 'Address Update'];
+    if (!validOptions.includes(selected_option)) {
       return {
-        status: HttpStatus.FORBIDDEN,
-        message: 'User does not have access to the main menu.'
+        status: HttpStatus.BAD_REQUEST,
+        message: 'Invalid menu option selected.',
       };
     }
 
-    return {
-      status: HttpStatus.OK,
-      has_access: true
-    };
+    try {
+      const redirectUrl = await this.authService.redirectUser(user, selected_option);
+      return {
+        status: HttpStatus.OK,
+        redirect_url: redirectUrl,
+      };
+    } catch (error) {
+      if (error.status === HttpStatus.FORBIDDEN) {
+        return {
+          status: HttpStatus.FORBIDDEN,
+          message: error.response,
+        };
+      } else if (error.status === HttpStatus.NOT_FOUND) {
+        return {
+          status: HttpStatus.NOT_FOUND,
+          message: error.response,
+        };
+      } else {
+        return {
+          status: HttpStatus.INTERNAL_SERVER_ERROR,
+          message: 'An unexpected error has occurred on the server.',
+        };
+      }
+    }
   }
 }
