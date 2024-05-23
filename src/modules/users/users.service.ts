@@ -1,59 +1,30 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
-import { UserRepository } from 'src/repositories/users.repository';
-import { SubmissionFormRepository } from 'src/repositories/submission-forms.repository';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { SubmissionsService } from '../submissions/submissions.service';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { InjectRepository, Transaction, TransactionRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User } from 'src/entities/users.ts';
+import { CustomerSearch } from 'src/entities/customer_searches.ts';
+import { SuccessResponseDTO } from 'src/shared/response/success-response.dto.ts';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(UserRepository)
-    private userRepository: UserRepository,
-    @InjectRepository(SubmissionFormRepository)
-    private submissionFormRepository: SubmissionFormRepository,
-    private dataSource: DataSource,
-    private submissionsService: SubmissionsService,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(CustomerSearch)
+    private readonly customerSearchRepository: Repository<CustomerSearch>
   ) {}
 
-  async updateUser(userId: number, updateUserData: UpdateUserDto): Promise<string> {
-    const queryRunner = this.dataSource.createQueryRunner();
-
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
-    try {
-      // Validate the submission form before updating user information
-      await this.submissionsService.validateSubmissionForm(updateUserData);
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      await queryRunner.release();
-      if (error instanceof BadRequestException) {
-        throw error;
-      }
-      throw new BadRequestException('Validation failed.');
+  @Transaction()
+  async resetSearchCriteria(userId: number, @TransactionRepository(User) userRepo?: Repository<User>, @TransactionRepository(CustomerSearch) customerSearchRepo?: Repository<CustomerSearch>): Promise<SuccessResponseDTO> {
+    const user = await userRepo.findOneBy({ id: userId });
+    if (!user || !user.is_logged_in) {
+      throw new NotFoundException('User not found or not logged in.');
     }
-
-    try {
-      await this.userRepository.update(userId, updateUserData);
-
-      const submissionData = {
-        user_id: userId,
-        form_data: JSON.stringify(updateUserData),
-        submission_status: 'submitted',
-        submission_date: new Date(),
-      };
-      await this.submissionFormRepository.save(submissionData);
-
-      await queryRunner.commitTransaction();
-
-      return 'Your information has been successfully updated.';
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
+    // Assuming there's a method to check if the user has permission to reset search criteria
+    if (!user.canResetSearchCriteria()) {
+      throw new ForbiddenException('User does not have permission to reset search criteria.');
     }
+    await customerSearchRepo.delete({ user_id: userId });
+    return new SuccessResponseDTO('Search criteria has been reset successfully.');
   }
 }
