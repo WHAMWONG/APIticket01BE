@@ -4,12 +4,14 @@ import { Repository } from 'typeorm';
 import { User } from 'src/entities/users.ts';
 import { Auth } from 'src/decorators/auth.decorator.ts';
 import { CurrentUser } from 'src/decorators/current-user.decorator.ts';
+import { PermissionsService } from 'src/shared/permissions/permissions.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    private permissionsService: PermissionsService,
   ) {}
 
   @Auth()
@@ -21,8 +23,7 @@ export class AuthService {
     }
 
     // Check if the user has permission to access the selected_option
-    // This is a placeholder check, replace with actual permission logic
-    const hasPermission = true; // Replace with actual permission check
+    const hasPermission = await this.permissionsService.checkPermissions(currentUser.id);
     if (!hasPermission) {
       throw new ForbiddenException('User does not have permission to access this option');
     }
@@ -46,5 +47,21 @@ export class AuthService {
 
     // Return a redirect response to the appropriate section
     return new RedirectResponse(redirectUrl);
+  }
+
+  async checkPermissions(user_id: number): Promise<boolean> {
+    const user = await this.userRepository.findOneBy({ id: user_id });
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    if (!user.is_logged_in) {
+      throw a ForbiddenException('User is not logged in.');
+    }
+
+    const hasAccess = await this.permissionsService.checkPermissions(user_id);
+    if (!hasAccess) throw a ForbiddenException('User does not have access to the main menu.');
+
+    return true;
   }
 }
