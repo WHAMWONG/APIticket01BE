@@ -1,5 +1,6 @@
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { Module } from '@nestjs/common'
+import { CustomerModule } from './modules/customer/customer.module'
 import { CacheModule } from '@nestjs/cache-manager'
 import { TypeOrmModule } from '@nestjs/typeorm'
 import { APP_FILTER } from '@nestjs/core'
@@ -55,6 +56,7 @@ import { HttpExceptionFilter } from './filters/http_exception.filter'
     CacheModule.register({ isGlobal: true }),
     ShareModule,
     ...modules,
+    CustomerModule,
   ],
   providers: [
     {
