@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { CustomerInformation } from 'src/entities/customer_informations';
@@ -11,8 +11,7 @@ export class CustomerService {
   constructor(
     @InjectRepository(CustomerInformation)
     private customerInformationRepository: Repository<CustomerInformation>,
-    @InjectRepository(CustomerSearch)
-    private customerSearchRepository: Repository<CustomerSearch>,
+    @InjectRepository(CustomerSearch) private customerSearchRepository: Repository<CustomerSearch>,
   ) {}
 
   async searchCustomer(searchCustomerDto: SearchCustomerDto) {
@@ -21,8 +20,22 @@ export class CustomerService {
     // Validate user and permissions
     // This should be handled by the AuthGuard and CurrentUser decorator in the controller
 
+    // Validate search criteria
+    if (!searchCriteria) {
+      throw new BadRequestException('Search criteria is required.');
+    }
+
+    // Validate search type
+    if (!['name', 'katakana_name', 'email'].includes(searchType)) {
+      throw new BadRequestException("Invalid search type. Must be 'name', 'katakana_name', or 'email'.");
+    }
+
     // Construct dynamic query
-    const searchColumn = searchType === 'name' ? 'name' : searchType === 'katakana_name' ? 'katakana_name' : 'email';
+    const searchColumn = {
+      'name': 'name',
+      'katakana_name': 'katakana_name',
+      'email': 'email'
+    }[searchType];
     const whereCondition = { [searchColumn]: Like(`%${searchCriteria}%`) };
 
     // Execute search query
@@ -30,8 +43,17 @@ export class CustomerService {
       where: whereCondition,
     });
 
-    // Format results or prepare no matches message
-    const result = customers.length > 0 ? customers : 'No matches found';
+    // Check if customers were found
+    if (customers.length === 0) {
+      throw new NotFoundException('No customer information found matching the search criteria.');
+    }
+
+    // Prepare success response
+    const response = {
+      status: HttpStatus.OK,
+      customers: customers,
+      message: 'Customer information retrieved successfully.'
+    };
 
     // Log the search query and result count
     await this.customerSearchRepository.save({
@@ -42,6 +64,6 @@ export class CustomerService {
     });
 
     // Return the response
-    return result;
+    return response;
   }
 }
