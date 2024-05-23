@@ -1,9 +1,9 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, RedirectResponse } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from 'src/entities/users.ts';
-import { CurrentUser } from 'src/decorators/current-user.decorator';
-import { dataSource } from 'src/database/data-source.ts';
+import { Auth } from 'src/decorators/auth.decorator.ts';
+import { CurrentUser } from 'src/decorators/current-user.decorator.ts';
 
 @Injectable()
 export class AuthService {
@@ -12,37 +12,39 @@ export class AuthService {
     private userRepository: Repository<User>,
   ) {}
 
-  @CurrentUser()
-  async verifyMainMenuAccess() {
-    const currentUser = CurrentUser();
-    if (!currentUser) {
-      throw new ForbiddenException('User not found or not logged in.');
-    }
-
-    const user = await this.userRepository.findOneBy({
-      id: currentUser.user_id,
-      is_logged_in: true,
-    });
-
+  @Auth()
+  async redirectUser(@CurrentUser() currentUser: User, selected_option: string): Promise<RedirectResponse> {
+    // Validate that the user_id corresponds to an existing user
+    const user = await this.userRepository.findOneBy({ id: currentUser.id });
     if (!user) {
-      throw new ForbiddenException('User not found or not logged in.');
+      throw new NotFoundException('User not found');
     }
 
-    // Assuming roles or permissions are stored in a separate table or service
-    // This is a placeholder for the actual permission check logic
-    const hasAccess = this.checkUserPermissions(user);
-
-    if (!hasAccess) {
-      throw new ForbiddenException('User does not have permission to access the main menu.');
+    // Check if the user has permission to access the selected_option
+    // This is a placeholder check, replace with actual permission logic
+    const hasPermission = true; // Replace with actual permission check
+    if (!hasPermission) {
+      throw new ForbiddenException('User does not have permission to access this option');
     }
 
-    return true;
-  }
+    // Determine the corresponding section of the system to redirect to
+    let redirectUrl;
+    switch (selected_option) {
+      case 'profile':
+        redirectUrl = '/profile';
+        break;
+      case 'settings':
+        redirectUrl = '/settings';
+        break;
+      // Add more cases as needed for other options
+      default:
+        throw new NotFoundException('Selected option is not valid');
+    }
 
-  // Placeholder for actual permission check logic
-  private checkUserPermissions(user: User): boolean {
-    // Implement the logic to check if the user has the required role or permissions
-    // Return true if the user has access, false otherwise
-    return true; // This should be replaced with actual permission checking logic
+    // Log the user's navigation action for audit purposes
+    console.log(`User ${currentUser.id} navigated to ${selected_option}`);
+
+    // Return a redirect response to the appropriate section
+    return new RedirectResponse(redirectUrl);
   }
 }
